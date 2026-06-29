@@ -27,11 +27,11 @@ while True:
         gray,
         cv2.HOUGH_GRADIENT,
         dp=1.2,
-        minDist=80,
-        param1=100,
-        param2=30,
-        minRadius=15,
-        maxRadius=200
+        minDist=150,
+        param1=150,
+        param2=55,
+        minRadius=50,
+        maxRadius=250
     )
 
     if circles is not None:
