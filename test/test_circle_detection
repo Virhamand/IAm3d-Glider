@@ -1,0 +1,64 @@
+import cv2
+import numpy as np
+
+cap = cv2.VideoCapture(0)   # Laptop webcam
+
+if not cap.isOpened():
+    raise RuntimeError("Could not open webcam")
+
+print("Press q to quit")
+
+while True:
+
+    ret, frame = cap.read()
+
+    if not ret:
+        break
+
+    # Flip so movement feels natural
+    frame = cv2.flip(frame, 1)
+
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+    # Blur removes camera noise
+    gray = cv2.GaussianBlur(gray, (9, 9), 2)
+
+    circles = cv2.HoughCircles(
+        gray,
+        cv2.HOUGH_GRADIENT,
+        dp=1.2,
+        minDist=80,
+        param1=100,
+        param2=30,
+        minRadius=15,
+        maxRadius=200
+    )
+
+    if circles is not None:
+
+        circles = np.round(circles[0]).astype(int)
+
+        # Draw every detected circle
+        for (x, y, r) in circles:
+
+            cv2.circle(frame, (x, y), r, (0, 255, 0), 2)
+
+            cv2.circle(frame, (x, y), 3, (0, 0, 255), -1)
+
+            cv2.putText(
+                frame,
+                f"({x},{y})",
+                (x + 10, y),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                (255,255,255),
+                2
+            )
+
+    cv2.imshow("Circle Detection", frame)
+
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+cap.release()
+cv2.destroyAllWindows()
