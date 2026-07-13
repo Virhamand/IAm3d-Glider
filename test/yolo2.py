@@ -2,6 +2,9 @@ import cv2
 from ultralytics import YOLO
 import math
 
+# model parameters
+CONF_THRESHOLD = 0.25
+
 # model
 model = YOLO('yolov8n.pt')
 
@@ -12,8 +15,13 @@ cap.set(4, 480)
 while True:
     ret, img= cap.read()
     if not ret: break
+    
+    # Reduce image resolution to ratio of original size
+    ratio = 0.5
+    resized_img = cv2.resize(img, (0,0), fx=ratio,fy=ratio,interpolation=cv2.INTER_AREA)
+    scale = 1 / ratio
 
-    results = model(img, stream=True)
+    results = model(resized_img, stream=True, conf=CONF_THRESHOLD)
 
     for r in results:
         boxes = r.boxes
@@ -21,7 +29,7 @@ while True:
         for box in boxes:
             # bounding box
             x1, y1, x2, y2 = box.xyxy[0]
-            x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2) # convert to int values
+            x1, y1, x2, y2 = int(x1 * scale), int(y1 * scale), int(x2 * scale), int(y2 * scale) # convert to int values
 
             # confidence
             confidence = math.ceil((box.conf[0]*100))/100
@@ -30,8 +38,8 @@ while True:
             cls = int(box.cls[0])
             class_name = model.names[cls]
 
-            print("Confidence --->", confidence)
-            print("Class name -->", class_name)
+            # print("Confidence --->", confidence)
+            # print("Class name -->", class_name)
 
             # draw box
             cv2.rectangle(img, (x1, y1), (x2, y2), (255, 0, 255), 3)
@@ -44,7 +52,8 @@ while True:
             color = (255, 0, 0)
             thickness = 2
 
-            cv2.putText(img, class_name, org, font, fontScale, color, thickness)
+            # Resized image is used for predictions, but result will be displayed on original image
+            cv2.putText(img, label, org, font, fontScale, color, thickness)
 
 
     cv2.imshow('Webcam', img)
