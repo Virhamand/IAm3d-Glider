@@ -3,7 +3,7 @@ from ultralytics import YOLO
 import math
 
 # model parameters
-CONF_THRESHOLD = 0.25
+conf_threshhold = 0.25
 
 # model
 model = YOLO('yolov8n.pt')
@@ -21,7 +21,9 @@ while True:
     resized_img = cv2.resize(img, (0,0), fx=ratio,fy=ratio,interpolation=cv2.INTER_AREA)
     scale = 1 / ratio
 
-    results = model(resized_img, stream=True, conf=CONF_THRESHOLD)
+    results = model(resized_img, stream=True, conf=conf_threshhold)
+    current_confidence = f"Current confidence level: {conf_threshhold}"
+    cv2.putText(img, current_confidence, [0,25], cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,0), 1)
 
     for r in results:
         boxes = r.boxes
@@ -58,7 +60,17 @@ while True:
 
     cv2.imshow('Webcam', img)
 
-    if cv2.waitKey(1) == ord('q'):
+    key = cv2.waitKey(1) & 0xFF
+
+    if key == ord('.') and conf_threshhold < 0.95:
+        conf_threshhold += 0.05
+        conf_threshhold = round(conf_threshhold, 2)
+
+    if key == ord(',') and conf_threshhold > 0.10:
+        conf_threshhold -= 0.05
+        conf_threshhold = round(conf_threshhold, 2)
+
+    if key == ord('q'):
         break
 
 cap.release()
