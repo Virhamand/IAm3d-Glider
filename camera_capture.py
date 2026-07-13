@@ -1,10 +1,40 @@
 import cv2
 from datetime import datetime
 
-cap = cv2.VideoCapture(0)
+def list_cameras(max_cameras=10):
+    cameras = []
+    
+    for i in range(max_cameras):
+        cap = cv2.VideoCapture(i)
+        
+        if cap.isOpened():
+            ret, _ = cap.read()
+            if ret:
+                cameras.append(i)
+        
+        cap.release()
+        
+    return cameras
+
+source = input("Camera (c) or Video (v)? ").strip().lower()
+
+if source == "v":
+    file_name = input("Video name: ").strip()
+    if not file_name.lower().endswith(".mp4"):
+        file_name += ".mp4"
+    cap = cv2.VideoCapture(file_name)
+else:
+    cameras = list_cameras(2)
+    
+    print("Available Cameras:")
+    for index in cameras:
+        print(f"[{index}]")
+        
+    choice = int(input("Choose camera: "))
+    cap = cv2.VideoCapture(choice)
 
 if not cap.isOpened():
-    raise RuntimeError("Could not open camera")
+    raise RuntimeError("Could not open video/camera")
 
 width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
