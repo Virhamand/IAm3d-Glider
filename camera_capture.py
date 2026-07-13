@@ -38,10 +38,15 @@ if not cap.isOpened():
 
 width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-fps = 30
+record_fps = 30
 
 recording = False
 video_writer = None
+
+source_fps = cap.get(cv2.CAP_PROP_FPS)
+if source_fps <= 0:
+    source_fps = 30
+delay = int(1000 / source_fps)
 
 print("Controls:")
 print("  r - Start/Stop recording")
@@ -61,13 +66,13 @@ while True:
         
     cv2.imshow("Camera", frame)
     
-    key = cv2.waitKey(1) & 0xFF
+    key = cv2.waitKey(delay) & 0xFF
     
     if key == ord('r'):
         if not recording:
             filename = datetime.now().strftime("video_%Y%m%d_%H%M%S.mp4")
             fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-            video_writer = cv2.VideoWriter(filename, fourcc, fps, (width, height))
+            video_writer = cv2.VideoWriter(filename, fourcc, record_fps, (width, height))
             recording = True
             print(f"Recording started: {filename}")
         else:
