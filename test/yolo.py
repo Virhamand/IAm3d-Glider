@@ -3,7 +3,7 @@ import numpy as np
 import cv2
 
 def get_model(): # prepare the model
-    model = YOLO('yolov8n.pt')
+    model = YOLO('best.pt')
     model.fuse()
     return model
 
@@ -37,8 +37,29 @@ def plot_bboxes(results):
                     thickness=1)
     return img
 
-results = get_model()('pool.jpg') # run inference
+results = get_model()('image.png') # run inference
 img = plot_bboxes(results) # plot annotated bboxes
-cv2.imshow('img', img) # show annotated image
+
+height, width = img.shape[:2]
+max_window_width = 1600
+max_window_height = 1400
+
+display_scale = min(
+    max_window_width / width,
+    max_window_height / height,
+    1.0  # Do not enlarge images smaller than the window limits
+)
+
+display_width = int(width * display_scale)
+display_height = int(height * display_scale)
+
+# Resize only the display copy
+display_img = cv2.resize(
+    img,
+    (display_width, display_height),
+    interpolation=cv2.INTER_AREA
+)
+
+cv2.imshow('img', display_img) # show annotated image
 cv2.waitKey(0) # wait for a keypressed
 cv2.destroyAllWindows() # clear windows

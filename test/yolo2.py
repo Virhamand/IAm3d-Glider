@@ -6,7 +6,7 @@ import math
 conf_threshhold = 0.25
 
 # model
-model = YOLO('yolov8n.pt')
+model = YOLO('best.pt')
 
 cap = cv2.VideoCapture(0)
 cap.set(3, 640)
