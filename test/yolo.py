@@ -3,7 +3,7 @@ import numpy as np
 import cv2
 
 def get_model(): # prepare the model
-    model = YOLO('best.pt')
+    model = YOLO('best10new.pt')
     model.fuse()
     return model
 
@@ -37,7 +37,7 @@ def plot_bboxes(results):
                     thickness=1)
     return img
 
-results = get_model()('image.png') # run inference
+results = get_model()('image.jpg') # run inference
 img = plot_bboxes(results) # plot annotated bboxes
 
 height, width = img.shape[:2]
