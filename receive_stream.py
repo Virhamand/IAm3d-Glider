@@ -2,6 +2,10 @@ import cv2
 import math
 from datetime import datetime
 from ultralytics import YOLO
+import numpy as np
+import requests
+import threading
+import time
 
 
 # -----------------------------
@@ -25,6 +29,171 @@ DEFAULT_RECORD_FPS = 30
 # -----------------------------
 # CAMERA FUNCTIONS
 # -----------------------------
+
+class ManualMJPEGStream:
+    def __init__(self, url, timeout=10, chunk_size=65536):
+        self.url = url
+        self.timeout = timeout
+        self.chunk_size = chunk_size
+
+        self.response = None
+        self.latest_frame = None
+
+        self.frame_lock = threading.Lock()
+        self.running = False
+        self.opened = False
+        self.thread = None
+
+        self._connect()
+
+    def _connect(self):
+        try:
+            self.response = requests.get(
+                self.url,
+                stream=True,
+                timeout=self.timeout,
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Pragma": "no-cache"
+                }
+            )
+
+            self.response.raise_for_status()
+
+            self.running = True
+            self.opened = True
+
+            self.thread = threading.Thread(
+                target=self._receive_frames,
+                daemon=True
+            )
+
+            self.thread.start()
+
+        except requests.RequestException as error:
+            print(f"Stream connection failed: {error}")
+            self.release()
+
+    def _receive_frames(self):
+        byte_buffer = bytearray()
+
+        try:
+            for chunk in self.response.iter_content(
+                chunk_size=self.chunk_size
+            ):
+                if not self.running:
+                    break
+
+                if not chunk:
+                    continue
+
+                byte_buffer.extend(chunk)
+
+                newest_jpeg = None
+
+                # Extract every complete JPEG currently in the buffer.
+                # Keep only the newest one.
+                while True:
+                    jpg_start = byte_buffer.find(b"\xff\xd8")
+
+                    if jpg_start == -1:
+                        byte_buffer.clear()
+                        break
+
+                    jpg_end = byte_buffer.find(
+                        b"\xff\xd9",
+                        jpg_start + 2
+                    )
+
+                    if jpg_end == -1:
+                        # Remove garbage before the JPEG start,
+                        # but keep the incomplete JPEG.
+                        if jpg_start > 0:
+                            del byte_buffer[:jpg_start]
+                        break
+
+                    newest_jpeg = bytes(
+                        byte_buffer[jpg_start:jpg_end + 2]
+                    )
+
+                    del byte_buffer[:jpg_end + 2]
+
+                if newest_jpeg is None:
+                    continue
+
+                encoded_frame = np.frombuffer(
+                    newest_jpeg,
+                    dtype=np.uint8
+                )
+
+                frame = cv2.imdecode(
+                    encoded_frame,
+                    cv2.IMREAD_COLOR
+                )
+
+                if frame is None:
+                    continue
+
+                # Overwrite the old frame instead of creating a queue.
+                with self.frame_lock:
+                    self.latest_frame = frame
+
+        except requests.RequestException as error:
+            if self.running:
+                print(f"Stream read error: {error}")
+
+        except Exception as error:
+            if self.running:
+                print(f"Unexpected stream error: {error}")
+
+        finally:
+            self.opened = False
+
+    def isOpened(self):
+        return self.opened
+
+    def read(self):
+        if not self.opened:
+            return False, None
+
+        with self.frame_lock:
+            if self.latest_frame is None:
+                return False, None
+
+            return True, self.latest_frame.copy()
+
+    def get(self, property_id):
+        if property_id == cv2.CAP_PROP_FRAME_WIDTH:
+            return 640
+
+        if property_id == cv2.CAP_PROP_FRAME_HEIGHT:
+            return 480
+
+        if property_id == cv2.CAP_PROP_FPS:
+            return 30
+
+        return 0
+
+    def set(self, property_id, value):
+        return False
+
+    def release(self):
+        self.running = False
+        self.opened = False
+
+        if self.response is not None:
+            self.response.close()
+            self.response = None
+
+        if (
+            self.thread is not None
+            and self.thread.is_alive()
+            and threading.current_thread() is not self.thread
+        ):
+            self.thread.join(timeout=1)
+
+        self.thread = None
+        
 
 def list_cameras(max_cameras=3):
     available_cameras = []
@@ -59,6 +228,8 @@ def open_source():
 
         source = file_name
         is_saved_video = True
+        
+        cap = cv2.VideoCapture(source)
 
     elif source_type == "p":
         pi_ip = input(
@@ -68,7 +239,11 @@ def open_source():
         if not pi_ip:
             pi_ip = DEFAULT_PI_IP
 
-        source = f"http://{pi_ip}:5000/video_feed"
+        stream_url = f"http://{pi_ip}:5000/video_feed"
+
+        print(f"Connecting to {stream_url}...")
+
+        cap = ManualMJPEGStream(stream_url)
         is_saved_video = False
 
     elif source_type == "c":
@@ -94,21 +269,19 @@ def open_source():
 
         source = camera_index
         is_saved_video = False
+        
+        cap = cv2.VideoCapture(camera_index)
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
 
     else:
         raise RuntimeError(
             "Invalid choice. Enter c, v, or p."
         )
 
-    cap = cv2.VideoCapture(source)
-
     if not cap.isOpened():
-        raise RuntimeError(f"Could not open source: {source}")
-
-    if isinstance(source, int):
-        cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
-        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
-
+        raise RuntimeError("Could not open source")
+    
     return cap, is_saved_video
 
 
@@ -286,6 +459,23 @@ def main():
     print("YOLO model loaded.")
 
     cap, is_saved_video = open_source()
+    
+    if not is_saved_video:
+        print("Waiting for first frame...")
+
+    start_time = time.time()
+
+    while True:
+        ret, frame = cap.read()
+
+        if ret:
+            break
+
+        if time.time() - start_time > 10:
+            cap.release()
+            raise RuntimeError("Timed out waiting for stream frames")
+
+        time.sleep(0.01)
 
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
