@@ -12,12 +12,16 @@ camera_config = picam2.create_video_configuration(
         "size": (640, 480),
         "format": "RGB888"
     }
+    buffer_count=2,
+    controls={
+        "FrameRate": 30
+    }
 )
 
 picam2.configure(camera_config)
 picam2.start()
 
-time.sleep(2)
+time.sleep(1)
 
 
 def generate_frames():
@@ -27,7 +31,7 @@ def generate_frames():
         success, buffer = cv2.imencode(
             ".jpg",
             frame,
-            [cv2.IMWRITE_JPEG_QUALITY, 80]
+            [cv2.IMWRITE_JPEG_QUALITY, 60]
         )
 
         if not success:
