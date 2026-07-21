@@ -71,12 +71,6 @@ def capture_frames():
         try:
             frame = picam2.capture_array()
 
-            # Picamera2 supplies RGB; OpenCV normally uses BGR.
-            frame = cv2.cvtColor(
-                frame,
-                cv2.COLOR_RGB2BGR
-            )
-
             success, encoded_frame = cv2.imencode(
                 ".jpg",
                 frame,
