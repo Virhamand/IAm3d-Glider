@@ -1,19 +1,23 @@
 import cv2
 from ultralytics import YOLO
 import math
+import time
 
 # model parameters
 conf_threshhold = 0.25
 
 # model
-model = YOLO('best.pt')
+model = YOLO('best10new.pt')
 
 cap = cv2.VideoCapture(0)
 cap.set(3, 640)
 cap.set(4, 480)
 
+prev_frame_time = 0
+new_frame_time = 0
+
 while True:
-    ret, img= cap.read()
+    ret, img = cap.read()
     if not ret: break
     
     # Reduce image resolution to ratio of original size
@@ -22,8 +26,8 @@ while True:
     scale = 1 / ratio
 
     results = model(resized_img, stream=True, conf=conf_threshhold)
-    current_confidence = f"Current confidence level: {conf_threshhold}"
-    cv2.putText(img, current_confidence, [0,25], cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,0), 1)
+    current_confidence = f"Confidence level: {conf_threshhold}"
+    cv2.putText(img, current_confidence, [0,25], cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,0), 2)
 
     for r in results:
         boxes = r.boxes
@@ -56,7 +60,12 @@ while True:
 
             # Resized image is used for predictions, but result will be displayed on original image
             cv2.putText(img, label, org, font, fontScale, color, thickness)
-
+    
+    new_frame_time = time.time()
+    fps = int(1/(new_frame_time - prev_frame_time))
+    prev_frame_time = new_frame_time
+    fps = f"FPS: {fps}"
+    cv2.putText(img, fps, [510,25], cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,0), 2)
 
     cv2.imshow('Webcam', img)
 
