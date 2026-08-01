@@ -379,46 +379,31 @@ def draw_detection(frame, box, class_name, confidence):
 # -----------------------------
 
 def run_yolo(frame, model, confidence_threshold):
-    resized_frame = cv2.resize(
-        frame,
-        (0, 0),
-        fx=INFERENCE_SCALE,
-        fy=INFERENCE_SCALE,
-        interpolation=cv2.INTER_AREA
-    )
-
-    scale = 1 / INFERENCE_SCALE
-
     results = model(
-        resized_frame,
-        stream=True,
+        frame,
+        imgsz = 320,
         conf=confidence_threshold,
         verbose=False
     )
+    
+    result = results[0]
+    
+    for box in result.boxes:
+        x1, y1, x2, y2 = map(
+            int,
+            box.xyxy[0].tolist()
+        )
 
-    for result in results:
-        for box in result.boxes:
-            x1, y1, x2, y2 = box.xyxy[0]
+        confidence = float(box.conf[0])
+        class_index = int(box.cls[0])
+        class_name = model.names[class_index]
 
-            scaled_box = (
-                int(x1 * scale),
-                int(y1 * scale),
-                int(x2 * scale),
-                int(y2 * scale)
-            )
-
-            confidence = float(box.conf[0])
-            confidence = math.ceil(confidence * 100) / 100
-
-            class_index = int(box.cls[0])
-            class_name = model.names[class_index]
-
-            draw_detection(
-                frame,
-                scaled_box,
-                class_name,
-                confidence
-            )
+        draw_detection(
+            frame,
+            (x1, y1, x2, y2),
+            class_name,
+            confidence
+        )
 
     return frame
 
