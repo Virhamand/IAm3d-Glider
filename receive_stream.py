@@ -197,6 +197,117 @@ class ManualMJPEGStream:
         self.thread = None
         
 
+class YOLOInferenceWorker:
+    def __init__(self, model, confidence_threshold=0.25):
+        self.model = model
+        self.confidence_threshold = confidence_threshold
+
+        self.latest_frame = None
+        self.latest_detections = []
+
+        self.frame_lock = threading.Lock()
+        self.detection_lock = threading.Lock()
+
+        self.running = True
+        self.new_frame_event = threading.Event()
+
+        self.thread = threading.Thread(
+            target=self._inference_loop,
+            daemon=True
+        )
+
+        self.thread.start()
+
+    def submit_frame(self, frame):
+        """
+        Replace the previous pending frame.
+
+        There is intentionally no frame queue:
+        YOLO should process the newest frame available.
+        """
+        with self.frame_lock:
+            self.latest_frame = frame.copy()
+
+        self.new_frame_event.set()
+
+    def _inference_loop(self):
+        while self.running:
+            # Wait until a frame is available.
+            self.new_frame_event.wait(timeout=0.1)
+
+            if not self.running:
+                break
+
+            with self.frame_lock:
+                if self.latest_frame is None:
+                    self.new_frame_event.clear()
+                    continue
+
+                frame = self.latest_frame
+                self.latest_frame = None
+
+            self.new_frame_event.clear()
+
+            detections = self._run_yolo(frame)
+
+            with self.detection_lock:
+                self.latest_detections = detections
+
+    def _run_yolo(self, frame):
+        resized_frame = cv2.resize(
+            frame,
+            (0, 0),
+            fx=INFERENCE_SCALE,
+            fy=INFERENCE_SCALE,
+            interpolation=cv2.INTER_AREA
+        )
+
+        scale = 1 / INFERENCE_SCALE
+
+        results = self.model(
+            resized_frame,
+            conf=self.confidence_threshold,
+            verbose=False
+        )
+
+        detections = []
+
+        for result in results:
+            for box in result.boxes:
+                x1, y1, x2, y2 = box.xyxy[0]
+
+                x1 = int(x1 * scale)
+                y1 = int(y1 * scale)
+                x2 = int(x2 * scale)
+                y2 = int(y2 * scale)
+
+                confidence = float(box.conf[0])
+                class_index = int(box.cls[0])
+                class_name = self.model.names[class_index]
+
+                detections.append({
+                    "box": (x1, y1, x2, y2),
+                    "confidence": confidence,
+                    "class_name": class_name
+                })
+
+        return detections
+
+    def get_detections(self):
+        with self.detection_lock:
+            return list(self.latest_detections)
+
+    def set_confidence(self, confidence_threshold):
+        self.confidence_threshold = confidence_threshold
+
+    def release(self):
+        self.running = False
+        self.new_frame_event.set()
+
+        if self.thread.is_alive():
+            self.thread.join(timeout=2)
+
+
 def list_cameras(max_cameras=3):
     available_cameras = []
 
