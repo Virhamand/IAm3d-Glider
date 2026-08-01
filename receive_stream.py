@@ -489,35 +489,16 @@ def draw_detection(frame, box, class_name, confidence):
 # YOLO FUNCTION
 # -----------------------------
 
-def run_yolo(frame, model, confidence_threshold):
-    results = model(
-        frame,
-        imgsz = 320,
-        conf=confidence_threshold,
-        verbose=False
-    )
-    
-    result = results[0]
-    
-    for box in result.boxes:
-        x1, y1, x2, y2 = map(
-            int,
-            box.xyxy[0].tolist()
-        )
-
-        confidence = float(box.conf[0])
-        class_index = int(box.cls[0])
-        class_name = model.names[class_index]
-
+def draw_detections(frame, detections):
+    for detection in detections:
         draw_detection(
             frame,
-            (x1, y1, x2, y2),
-            class_name,
-            confidence
+            detection["box"],
+            detection["class_name"],
+            detection["confidence"]
         )
 
     return frame
-
 
 # -----------------------------
 # RECORDING FUNCTIONS
