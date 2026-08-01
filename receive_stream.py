@@ -660,6 +660,10 @@ def main():
                         confidence_threshold,
                         2
                     )
+                    
+                    inference_worker.set_confidence(
+                        confidence_threshold
+                    )
 
             elif key == ord(","):
                 if confidence_threshold > MIN_CONFIDENCE:
@@ -667,6 +671,10 @@ def main():
                     confidence_threshold = round(
                         confidence_threshold,
                         2
+                    )
+
+                    inference_worker.set_confidence(
+                        confidence_threshold
                     )
 
             elif key == ord("r"):
