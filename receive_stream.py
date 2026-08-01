@@ -31,7 +31,7 @@ DEFAULT_RECORD_FPS = 30
 # -----------------------------
 
 class ManualMJPEGStream:
-    def __init__(self, url, timeout=10, chunk_size=65536):
+    def __init__(self, url, timeout=10, chunk_size=16384):
         self.url = url
         self.timeout = timeout
         self.chunk_size = chunk_size
