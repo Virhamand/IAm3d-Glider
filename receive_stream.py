@@ -576,7 +576,12 @@ def main():
         delay = 1
 
     confidence_threshold = 0.25
-
+    
+    inference_worker = YOLOInferenceWorker(
+        model,
+        confidence_threshold
+    )
+    
     recording = False
     video_writer = None
 
@@ -613,11 +618,9 @@ def main():
                     + 0.1 * instantaneous_fps
                 )
 
-            frame = run_yolo(
-                frame,
-                model,
-                confidence_threshold
-            )
+            inference_worker.submit_frame(frame)
+            detections = inference_worker.get_detections()
+            frame = draw_detections(frame, detections)
 
             confidence_text = (
                 f"Confidence: {confidence_threshold:.2f}"
