@@ -711,6 +711,8 @@ def main():
                 break
 
     finally:
+        inference_worker.release()
+        
         if video_writer is not None:
             video_writer.release()
 
