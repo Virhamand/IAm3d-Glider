@@ -219,12 +219,6 @@ class YOLOInferenceWorker:
         self.thread.start()
 
     def submit_frame(self, frame):
-        """
-        Replace the previous pending frame.
-
-        There is intentionally no frame queue:
-        YOLO should process the newest frame available.
-        """
         with self.frame_lock:
             self.latest_frame = frame.copy()
 
@@ -232,7 +226,6 @@ class YOLOInferenceWorker:
 
     def _inference_loop(self):
         while self.running:
-            # Wait until a frame is available.
             self.new_frame_event.wait(timeout=0.1)
 
             if not self.running:
