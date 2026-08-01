@@ -157,10 +157,12 @@ class ManualMJPEGStream:
             return False, None
 
         with self.frame_lock:
-            if self.latest_frame is None:
-                return False, None
-
-            return True, self.latest_frame.copy()
+            frame = self.latest_frame
+        
+        if frame is None:
+            return False, None
+        
+        return True, frame.copy()
 
     def get(self, property_id):
         if property_id == cv2.CAP_PROP_FRAME_WIDTH:
