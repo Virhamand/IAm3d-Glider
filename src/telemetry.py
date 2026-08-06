@@ -12,7 +12,7 @@ from udp_sender import UDPSender
 # -----------------------------
 
 # Change to your ground station IP
-GROUND_IP = "192.168.137.1"
+GROUND_IP = "IPv4 Address (Wireless LAN adapter Local Area Connection)"
 
 GROUND_PORT = 5005
 
